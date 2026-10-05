@@ -205,25 +205,64 @@ export function parseMatches(
 	return parsed;
 }
 
-async function getHtml(url: string): Promise<{ html: string; url: string }> {
-	const response = await fetch(url, {
-		headers: {
-			"user-agent": "OpenShuttle/0.1 (+public results importer)",
-			"accept-language": "en-AU,en;q=0.9",
-		},
-		signal: AbortSignal.timeout(20_000),
-		cache: "no-store",
-	});
-	if (!response.ok)
-		throw new Error(`Tournamentsoftware returned HTTP ${response.status}`);
-	const length = Number(response.headers.get("content-length") ?? 0);
-	if (length > 3_000_000) throw new Error("Tournament page is too large");
-	const html = await response.text();
-	if (html.length > 3_000_000) throw new Error("Tournament page is too large");
-	return { html, url: response.url };
+export type RetryOptions = { attempts?: number; baseDelayMs?: number };
+
+/** Thrown for responses that retrying cannot fix. */
+class PermanentFetchError extends Error {}
+
+/** Fetches a public page, retrying rate limits, 5xx responses and network blips. */
+export async function getHtml(
+	url: string,
+	{ attempts = 3, baseDelayMs = 500 }: RetryOptions = {},
+): Promise<{ html: string; url: string }> {
+	let lastError: unknown;
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		if (attempt > 0)
+			await new Promise((resolve) =>
+				setTimeout(resolve, baseDelayMs * 2 ** (attempt - 1)),
+			);
+		try {
+			const response = await fetch(url, {
+				headers: {
+					"user-agent": "OpenShuttle/0.1 (+public results importer)",
+					"accept-language": "en-AU,en;q=0.9",
+				},
+				signal: AbortSignal.timeout(20_000),
+				cache: "no-store",
+			});
+			if (!response.ok) {
+				const message = `Tournamentsoftware returned HTTP ${response.status}`;
+				throw response.status === 429 || response.status >= 500
+					? new Error(message)
+					: new PermanentFetchError(message);
+			}
+			const length = Number(response.headers.get("content-length") ?? 0);
+			if (length > 3_000_000)
+				throw new PermanentFetchError("Tournament page is too large");
+			const html = await response.text();
+			if (html.length > 3_000_000)
+				throw new PermanentFetchError("Tournament page is too large");
+			return { html, url: response.url };
+		} catch (error) {
+			if (error instanceof PermanentFetchError) throw error;
+			lastError = error;
+		}
+	}
+	throw lastError instanceof Error
+		? lastError
+		: new Error("Tournamentsoftware request failed");
 }
 
-export async function fetchTournament(id: string) {
+export type TournamentOutline = {
+	name: string;
+	url: string;
+	host: TournamentOrigin;
+	days: string[];
+};
+
+export async function fetchTournamentOutline(
+	id: string,
+): Promise<TournamentOutline> {
 	const home = await getHtml(canonicalTournamentUrl(id));
 	const name = parseTournamentName(home.html);
 	// The generic badminton host redirects Australian events to ba, dropping
@@ -236,10 +275,27 @@ export async function fetchTournament(id: string) {
 	const days = parseMatchDays(index.html);
 	if (!days.length)
 		throw new Error("No match days found; page structure may have changed");
+	return { name, url, host, days };
+}
+
+export async function fetchMatchDay(
+	outline: Pick<TournamentOutline, "url" | "host">,
+	id: string,
+	day: string,
+): Promise<ParsedMatch[]> {
+	const html = await getHtml(`${outline.url}/Matches/MatchesInDay?date=${day}`);
+	return parseMatches(html.html, id, day, outline.host);
+}
+
+/** A Tournament is Finished once its last day is before today in Brisbane. */
+export function isFinished(lastDay: string, today: string): boolean {
+	return toIsoDate(lastDay) < today;
+}
+
+export async function fetchTournament(id: string) {
+	const outline = await fetchTournamentOutline(id);
 	const matches: ParsedMatch[] = [];
-	for (const day of days) {
-		const html = await getHtml(`${url}/Matches/MatchesInDay?date=${day}`);
-		matches.push(...parseMatches(html.html, id, day, host));
-	}
-	return { name, url, days, matches };
+	for (const day of outline.days)
+		matches.push(...(await fetchMatchDay(outline, id, day)));
+	return { name: outline.name, url: outline.url, days: outline.days, matches };
 }

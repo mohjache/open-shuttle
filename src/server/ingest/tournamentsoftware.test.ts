@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	extractTournamentIds,
+	getHtml,
+	isFinished,
 	parseMatchDays,
 	parseMatches,
 	parseTournamentName,
@@ -55,5 +57,49 @@ describe("tournamentsoftware importer", () => {
 		expect(parseMatches(html.replace("30", "31"), id, "20261004")[0]?.id).toBe(
 			match?.id,
 		);
+	});
+});
+
+describe("tournamentsoftware fetching", () => {
+	afterEach(() => vi.unstubAllGlobals());
+	const page = (status: number, body = "<html></html>") =>
+		new Response(body, { status });
+
+	it("retries rate limits and server errors before succeeding", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(page(429))
+			.mockRejectedValueOnce(new TypeError("fetch failed"))
+			.mockResolvedValueOnce(page(200, "<p>ok</p>"));
+		vi.stubGlobal("fetch", fetchMock);
+		const result = await getHtml("https://example.test/", { baseDelayMs: 0 });
+		expect(result.html).toBe("<p>ok</p>");
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
+	it("gives up after the last attempt and reports the failure", async () => {
+		const fetchMock = vi.fn().mockImplementation(async () => page(503));
+		vi.stubGlobal("fetch", fetchMock);
+		await expect(
+			getHtml("https://example.test/", { attempts: 2, baseDelayMs: 0 }),
+		).rejects.toThrow("HTTP 503");
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not retry permanent client errors", async () => {
+		const fetchMock = vi.fn().mockImplementation(async () => page(404));
+		vi.stubGlobal("fetch", fetchMock);
+		await expect(
+			getHtml("https://example.test/", { baseDelayMs: 0 }),
+		).rejects.toThrow("HTTP 404");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("isFinished", () => {
+	it("is true only once the last day is before today in Brisbane", () => {
+		expect(isFinished("20260913", "2026-09-14")).toBe(true);
+		expect(isFinished("20260913", "2026-09-13")).toBe(false);
+		expect(isFinished("20260913", "2026-09-12")).toBe(false);
 	});
 });

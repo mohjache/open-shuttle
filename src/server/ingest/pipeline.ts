@@ -1,11 +1,8 @@
 import "server-only";
-import { asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
 	ingestionRuns,
-	matches,
-	matchPlayers,
-	players,
 	sourcePosts,
 	sources,
 	tournamentSources,
@@ -15,15 +12,14 @@ import { DEFAULT_SOURCES, discoverFacebookPosts } from "./facebook";
 import type { ListedTournament } from "./listing";
 import {
 	BRISBANE_SOURCE,
-	brisbaneToday,
 	fetchBrisbaneListings,
 	fetchTournamentListings,
 	LISTING_SOURCE,
 } from "./listing";
 import { fetchGenCoreListings, GEN_CORE_SOURCE } from "./organizer-listing";
+import { enqueueMissingImportJobs } from "./queue";
 import {
 	canonicalTournamentUrl,
-	fetchTournament,
 	tournamentIdFromUrl,
 } from "./tournamentsoftware";
 
@@ -247,124 +243,8 @@ export async function registerTournament(input: string) {
 	return id;
 }
 
-export async function importTournament(id: string) {
-	const result = await fetchTournament(id);
-	if (!result.matches.length)
-		throw new Error(
-			"No player matches parsed; page structure may have changed",
-		);
-	const now = new Date();
-	const playerMap = new Map<string, typeof players.$inferInsert>();
-	const matchValues: (typeof matches.$inferInsert)[] = [];
-	const participantValues: (typeof matchPlayers.$inferInsert)[] = [];
-	for (const match of result.matches) {
-		matchValues.push({
-			id: match.id,
-			tournamentId: id,
-			matchDate: match.date,
-			draw: match.draw,
-			round: match.round,
-			venue: match.venue,
-			score: match.score,
-			winnerSide: match.winnerSide,
-			status: match.status,
-			sourceUrl: match.sourceUrl,
-			updatedAt: now,
-		});
-		for (const [sideIndex, side] of match.sides.entries()) {
-			for (const [position, player] of side.entries()) {
-				const playerId = `${id}:${player.sourcePlayerId}`;
-				playerMap.set(playerId, {
-					id: playerId,
-					tournamentId: id,
-					sourcePlayerId: player.sourcePlayerId,
-					name: player.name,
-					profileUrl: player.profileUrl,
-					clubId: player.clubId,
-					updatedAt: now,
-				});
-				participantValues.push({
-					matchId: match.id,
-					playerId,
-					side: sideIndex + 1,
-					position: position + 1,
-				});
-			}
-		}
-	}
-	await db.transaction(async (tx) => {
-		await tx
-			.insert(tournaments)
-			.values({
-				id,
-				name: result.name,
-				url: result.url,
-				startsOn: `${result.days[0]?.slice(0, 4)}-${result.days[0]?.slice(4, 6)}-${result.days[0]?.slice(6, 8)}`,
-				endsOn: `${result.days.at(-1)?.slice(0, 4)}-${result.days.at(-1)?.slice(4, 6)}-${result.days.at(-1)?.slice(6, 8)}`,
-				lastImportedAt: now,
-				lastAttemptAt: now,
-				lastError: null,
-			})
-			.onConflictDoUpdate({
-				target: tournaments.id,
-				set: {
-					name: result.name,
-					url: result.url,
-					startsOn: `${result.days[0]?.slice(0, 4)}-${result.days[0]?.slice(4, 6)}-${result.days[0]?.slice(6, 8)}`,
-					endsOn: `${result.days.at(-1)?.slice(0, 4)}-${result.days.at(-1)?.slice(4, 6)}-${result.days.at(-1)?.slice(6, 8)}`,
-					lastImportedAt: now,
-					lastAttemptAt: now,
-					lastError: null,
-				},
-			});
-		await tx
-			.insert(players)
-			.values([...playerMap.values()])
-			.onConflictDoUpdate({
-				target: players.id,
-				set: {
-					name: sql.raw('excluded."name"'),
-					profileUrl: sql.raw('excluded."profileUrl"'),
-					clubId: sql.raw('excluded."clubId"'),
-					updatedAt: now,
-				},
-			});
-		await tx
-			.insert(matches)
-			.values(matchValues)
-			.onConflictDoUpdate({
-				target: matches.id,
-				set: {
-					matchDate: sql.raw('excluded."matchDate"'),
-					draw: sql.raw('excluded."draw"'),
-					round: sql.raw('excluded."round"'),
-					venue: sql.raw('excluded."venue"'),
-					score: sql.raw('excluded."score"'),
-					winnerSide: sql.raw('excluded."winnerSide"'),
-					status: sql.raw('excluded."status"'),
-					sourceUrl: sql.raw('excluded."sourceUrl"'),
-					updatedAt: now,
-				},
-			});
-		await tx
-			.insert(matchPlayers)
-			.values(participantValues)
-			.onConflictDoNothing();
-	});
-	return {
-		id,
-		name: result.name,
-		days: result.days.length,
-		matches: result.matches.length,
-	};
-}
-
 export async function runIngestion(
-	options: {
-		facebookToken?: string;
-		listingQuery?: string;
-		limit?: number;
-	} = {},
+	options: { facebookToken?: string; listingQuery?: string } = {},
 ) {
 	await ensureSeedData();
 	const [run] = await db
@@ -374,8 +254,7 @@ export async function runIngestion(
 	if (!run) throw new Error("Could not start ingestion run");
 	const errors: string[] = [];
 	let discovered = 0;
-	let imported = 0;
-	let matchCount = 0;
+	let queued = 0;
 	try {
 		const listingDiscovery = await discoverFromTournamentListings(
 			options.listingQuery,
@@ -387,35 +266,9 @@ export async function runIngestion(
 			discovered += discovery.discovered;
 			errors.push(...discovery.errors);
 		}
-		const pending = await db
-			.select({ id: tournaments.id })
-			.from(tournaments)
-			.where(
-				or(
-					isNull(tournaments.startsOn),
-					lte(tournaments.startsOn, brisbaneToday()),
-				),
-			)
-			.orderBy(
-				sql`${tournaments.lastAttemptAt} asc nulls first`,
-				asc(tournaments.discoveredAt),
-				asc(tournaments.id),
-			)
-			.limit(options.limit ?? 2);
-		for (const tournament of pending) {
-			try {
-				const result = await importTournament(tournament.id);
-				imported++;
-				matchCount += result.matches;
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				errors.push(`${tournament.id}: ${message}`);
-				await db
-					.update(tournaments)
-					.set({ lastAttemptAt: new Date(), lastError: message })
-					.where(eq(tournaments.id, tournament.id));
-			}
-		}
+		// Safety net: queue anything that reached the tournament table without a
+		// job (Facebook posts, manual registration, the seeded example).
+		queued = await enqueueMissingImportJobs();
 	} catch (error) {
 		errors.push(error instanceof Error ? error.message : String(error));
 	}
@@ -425,10 +278,8 @@ export async function runIngestion(
 			finishedAt: new Date(),
 			status: errors.length ? "partial" : "success",
 			discovered,
-			imported,
-			matches: matchCount,
 			error: errors.join("\n") || null,
 		})
 		.where(eq(ingestionRuns.id, run.id));
-	return { runId: run.id, discovered, imported, matches: matchCount, errors };
+	return { runId: run.id, discovered, queued, errors };
 }

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { canIngest } from "~/server/authz";
-import { importTournament, registerTournament } from "~/server/ingest/pipeline";
+import { registerTournament } from "~/server/ingest/pipeline";
+import { enqueueTournamentNow } from "~/server/ingest/queue";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 const bodySchema = z.object({ url: z.string().url() });
 
@@ -18,10 +18,11 @@ export async function POST(request: Request) {
 		);
 	try {
 		const id = await registerTournament(parsed.data.url);
-		return Response.json(await importTournament(id));
+		await enqueueTournamentNow(id);
+		return Response.json({ id, queued: true }, { status: 202 });
 	} catch (error) {
 		return Response.json(
-			{ error: error instanceof Error ? error.message : "Import failed" },
+			{ error: error instanceof Error ? error.message : "Queueing failed" },
 			{ status: 502 },
 		);
 	}

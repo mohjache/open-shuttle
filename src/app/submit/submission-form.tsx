@@ -16,11 +16,7 @@ import { Spinner } from "~/components/ui/spinner";
 export function TournamentSubmission() {
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<{
-		id: string;
-		name: string;
-		matches: number;
-	} | null>(null);
+	const [result, setResult] = useState<{ id: string } | null>(null);
 
 	async function submit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -49,20 +45,16 @@ export function TournamentSubmission() {
 				throw new Error(
 					typeof data.error === "string"
 						? data.error
-						: "Import failed. Please try again.",
+						: "Could not queue the import. Please try again.",
 				);
-			if (
-				typeof data.id !== "string" ||
-				typeof data.name !== "string" ||
-				typeof data.matches !== "number"
-			)
+			if (typeof data.id !== "string" || data.queued !== true)
 				throw new Error("The importer returned an unexpected response.");
-			setResult({ id: data.id, name: data.name, matches: data.matches });
+			setResult({ id: data.id });
 		} catch (error) {
 			setError(
 				error instanceof Error
 					? error.message
-					: "Import failed. Please try again.",
+					: "Could not queue the import. Please try again.",
 			);
 		} finally {
 			const keyInput = form.elements.namedItem("key");
@@ -107,20 +99,20 @@ export function TournamentSubmission() {
 			</FieldGroup>
 			<Button disabled={pending} type="submit">
 				{pending && <Spinner data-icon="inline-start" />}
-				{pending ? "Importing results…" : "Import tournament"}
+				{pending ? "Queueing import…" : "Queue import"}
 			</Button>
 			<div aria-live="polite">
 				{error && (
 					<Alert variant="destructive">
-						<AlertTitle>Import failed</AlertTitle>
+						<AlertTitle>Could not queue import</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				)}
 				{result && (
 					<Alert>
-						<AlertTitle>{result.name}</AlertTitle>
+						<AlertTitle>Import queued</AlertTitle>
 						<AlertDescription>
-							{result.matches} matches imported.{" "}
+							Results are imported within a minute or two.{" "}
 							<Link
 								className="underline"
 								href={`/tournaments/${encodeURIComponent(result.id)}`}

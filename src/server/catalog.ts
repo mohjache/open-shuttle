@@ -18,7 +18,6 @@ export async function listTournaments(limit = 30, offset = 0) {
 				startsOn: tournaments.startsOn,
 				endsOn: tournaments.endsOn,
 				lastImportedAt: tournaments.lastImportedAt,
-				lastError: tournaments.lastError,
 			})
 			.from(tournaments)
 			.orderBy(desc(tournaments.startsOn))

@@ -29,7 +29,7 @@ export default function SubmitPage() {
 				</h1>
 				<p className="max-w-lg text-muted-foreground">
 					Found a local event? Import its public Tournamentsoftware results
-					here. Repeat imports update the same event.
+					here. Imports are queued and processed one at a time.
 				</p>
 			</header>
 			<Card>

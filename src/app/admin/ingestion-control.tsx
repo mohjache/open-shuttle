@@ -8,8 +8,7 @@ import { Spinner } from "~/components/ui/spinner";
 type Result = {
 	runId: number;
 	discovered: number;
-	imported: number;
-	matches: number;
+	queued: number;
 	errors: string[];
 };
 
@@ -17,7 +16,7 @@ function isResult(value: unknown): value is Result {
 	if (!value || typeof value !== "object") return false;
 	const data = value as Record<string, unknown>;
 	return (
-		["runId", "discovered", "imported", "matches"].every(
+		["runId", "discovered", "queued"].every(
 			(key) => typeof data[key] === "number",
 		) &&
 		Array.isArray(data.errors) &&
@@ -88,9 +87,8 @@ export function IngestionControl() {
 						</AlertTitle>
 						<AlertDescription>
 							<p>
-								{result.discovered} new tournaments discovered ·{" "}
-								{result.imported} tournaments imported · {result.matches}{" "}
-								matches processed.
+								{result.discovered} new tournaments discovered · {result.queued}{" "}
+								import jobs queued.
 							</p>
 							{result.errors.length > 0 && (
 								<ul className="list-disc pl-4">

@@ -175,10 +175,13 @@ export default async function HomePage() {
 									<Separator className="my-5" />
 									<div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
 										<span>{formatDate(tournament.startsOn)}</span>
-										<span className="font-mono">
-											{tournament.matchCount} matches · {tournament.playerCount}{" "}
-											players
-										</span>
+										{(tournament.matchCount > 0 ||
+											tournament.playerCount > 0) && (
+											<span className="font-mono">
+												{tournament.matchCount} matches ·{" "}
+												{tournament.playerCount} players
+											</span>
+										)}
 									</div>
 								</Link>
 							))}

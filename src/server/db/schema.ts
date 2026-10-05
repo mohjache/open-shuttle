@@ -29,6 +29,33 @@ export const tournaments = createTable("tournament", (d) => ({
 	lastError: d.text(),
 }));
 
+export const importJobStatuses = [
+	"pending",
+	"running",
+	"done",
+	"failed",
+] as const;
+export type ImportJobStatus = (typeof importJobStatuses)[number];
+
+/** Outbox of Tournament imports; at most one row per Tournament. */
+export const importJobs = createTable(
+	"import_job",
+	(d) => ({
+		tournamentId: d
+			.uuid()
+			.primaryKey()
+			.references(() => tournaments.id),
+		status: d.varchar({ length: 16 }).notNull().default("pending"),
+		runAfter: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+		lockedUntil: d.timestamp({ withTimezone: true }),
+		attempts: d.integer().notNull().default(0),
+		lastError: d.text(),
+		createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+		updatedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+	}),
+	(t) => [index("import_job_status_run_after_idx").on(t.status, t.runAfter)],
+);
+
 export const sourcePosts = createTable(
 	"source_post",
 	(d) => ({

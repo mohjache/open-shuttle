@@ -353,6 +353,9 @@ export default async function HomePage() {
 				</section>
 				<footer className="flex flex-wrap items-center justify-between gap-3 border-border border-t py-7 font-mono text-muted-foreground text-xs">
 					<span>OPEN SHUTTLE / COMMUNITY DATA</span>
+					<Link className="hover:text-primary" href="/admin">
+						Admin
+					</Link>
 					<span>Public results · Source attributed</span>
 				</footer>
 			</div>

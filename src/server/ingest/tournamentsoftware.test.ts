@@ -6,6 +6,7 @@ import {
 	parseMatchDays,
 	parseMatches,
 	parseTournamentName,
+	usableMemberId,
 } from "./tournamentsoftware";
 
 const id = "ada99113-fa52-47f3-88d0-d4866c344313";
@@ -101,5 +102,72 @@ describe("isFinished", () => {
 		expect(isFinished("20260913", "2026-09-14")).toBe(true);
 		expect(isFinished("20260913", "2026-09-13")).toBe(false);
 		expect(isFinished("20260913", "2026-09-12")).toBe(false);
+	});
+});
+
+describe("member IDs", () => {
+	const org = "d62ece1c-326e-41e7-b6b4-321b9dabb0ab";
+	const player = (n: number, name: string) =>
+		`<a data-player-id="${n}" href="/sport/player.aspx?id=${id}&player=${n}"><span class="nav-link__value">${name}</span></a>`;
+	const match = (h2h: string) =>
+		`<div class="match match--list"><div class="match__row">${player(1, "Suryati Mustapha")}${player(2, "Chloe Wong")}</div><div class="match__row">${player(3, "Joyce Cheung")}${player(4, "Annie Liao")}</div><a href="${h2h}">H2H</a></div>`;
+	const parse = (h2h: string) => {
+		const [parsed] = parseMatches(match(h2h), id, "20260912");
+		return parsed?.sides.flat().map((p) => [p.name, p.memberId]);
+	};
+
+	it("maps each head-to-head member ID to its team position", () => {
+		expect(
+			parse(
+				`/head-2-head?OrganizationCode=${org}&amp;T1P1MemberID=SURYATI_72&amp;T2P2MemberID=NSW738`,
+			),
+		).toEqual([
+			["Suryati Mustapha", "SURYATI_72"],
+			["Chloe Wong", null],
+			["Joyce Cheung", null],
+			["Annie Liao", "NSW738"],
+		]);
+	});
+
+	it("records the organisation code and leaves the match id unchanged", () => {
+		const withIds = parseMatches(
+			match(`/head-2-head?OrganizationCode=${org}&T1P1MemberID=93486`),
+			id,
+			"20260912",
+		);
+		const without = parseMatches(match("/x"), id, "20260912");
+		expect(withIds[0]?.sides[0]?.[0]).toMatchObject({
+			memberId: "93486",
+			organizationCode: org,
+		});
+		expect(withIds[0]?.id).toBe(without[0]?.id);
+	});
+
+	it("never links without an organisation code or on a placeholder", () => {
+		expect(parse("/head-2-head?T1P1MemberID=93486")?.[0]?.[1]).toBeNull();
+		expect(
+			parse(
+				`/head-2-head?OrganizationCode=${org}&T1P1MemberID=000&T2P1MemberID=N.A.`,
+			)
+				?.map((p) => p[1])
+				.every((memberId) => memberId === null),
+		).toBe(true);
+		expect(parse("/nothing")?.every((p) => p[1] === null)).toBe(true);
+	});
+
+	it.each([
+		["000", null],
+		["0", null],
+		["N.A.", null],
+		["n/a", null],
+		["NA", null],
+		["", null],
+		["  ", null],
+		[undefined, null],
+		["NSW738", "NSW738"],
+		[" 93486 ", "93486"],
+		["SURYATI_72", "SURYATI_72"],
+	])("usableMemberId(%j) -> %j", (value, expected) => {
+		expect(usableMemberId(value)).toBe(expected);
 	});
 });

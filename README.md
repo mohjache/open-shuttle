@@ -77,9 +77,11 @@ All public reads return JSON, use `data` as the payload key, allow browser reads
 
 | `GET /api/v1/matches?tournamentId={uuid}&limit=30&offset=0` | Paginated matches; `playerId` can filter by player |
 
-| `GET /api/v1/players?q=name&tournamentId={uuid}&limit=30&offset=0` | Paginated player search |
+| `GET /api/v1/players?q=name&tournamentId={uuid}&limit=30&offset=0` | Paginated player search. Without `tournamentId`, players linked to the same person (same organisation member ID) collapse into one row with `personId` and `tournamentCount` |
 
-| `GET /api/v1/players/{id}` | Player and first 100 matches |
+| `GET /api/v1/players/{id}` | Player, first 100 matches, and `otherAppearances` (the same person's players in other tournaments) |
+| `GET /api/v1/persons?q=name&limit=30&offset=0` | Paginated person search; a person is one competitor linked across tournaments by organisation member ID, with `tournamentCount` |
+| `GET /api/v1/persons/{id}` | Person, their `appearances` (one player per tournament) and first 100 matches across all of them. The ID is `organizationCode:memberId`; URL-encode the colon |
 
 Admin endpoints accept `Authorization: Bearer $INGEST_API_KEY`, or a Neon Auth session for `ADMIN_EMAIL` when Neon Auth is configured. `POST /api/admin/import` queues an immediate import and returns `202`; it accepts `{ "url": "https://www.tournamentsoftware.com/tournament/UUID" }`, including Australian `/sport/tournament?id=UUID` links. `POST /api/admin/discover` discovers Australian keyword and Brisbane postcode search results plus Gen Core organizer events without importing match data. `POST /api/admin/ingest` runs the cron discovery job on demand. `POST /api/admin/retry` with `{ "tournamentId": "UUID" }` or `{ "all": true }` re-queues failed imports. `GET /api/admin/status` returns source states, tournament failures, recent runs and the import queue (counts by state, failed jobs and the age of the oldest due job). Import status is visible to administrators only. `PATCH /api/admin/sources/{id}` accepts `pageId` and/or `enabled`.
 

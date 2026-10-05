@@ -1,9 +1,10 @@
 import "server-only";
-import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
 	matches,
 	matchPlayers,
+	persons,
 	players,
 	tournaments,
 } from "~/server/db/schema";
@@ -55,21 +56,25 @@ export async function listMatches(
 	options: {
 		tournamentId?: string;
 		playerId?: string;
+		/** Matches involving any of these Players (a Person's appearances). */
+		playerIds?: string[];
 		limit?: number;
 		offset?: number;
 	} = {},
 ) {
 	const limit = Math.min(Math.max(options.limit ?? 30, 1), 100);
+	const playerIds =
+		options.playerIds ?? (options.playerId ? [options.playerId] : undefined);
 	const offset = Math.max(options.offset ?? 0, 0);
 	const where = options.tournamentId
 		? eq(matches.tournamentId, options.tournamentId)
 		: undefined;
-	const rows = options.playerId
+	const rows = playerIds
 		? await db
 				.selectDistinct({ match: matches })
 				.from(matches)
 				.innerJoin(matchPlayers, eq(matchPlayers.matchId, matches.id))
-				.where(and(where, eq(matchPlayers.playerId, options.playerId)))
+				.where(and(where, inArray(matchPlayers.playerId, playerIds)))
 				.orderBy(desc(matches.matchDate), desc(matches.id))
 				.limit(limit)
 				.offset(offset)
@@ -111,6 +116,11 @@ export async function listMatches(
 	}));
 }
 
+/**
+ * Players matching the filters. Without a tournament filter, Players linked to
+ * the same Person collapse into one row (the most recently updated) carrying
+ * how many Tournaments that Person appears in.
+ */
 export async function listPlayers(
 	options: {
 		q?: string;
@@ -119,30 +129,114 @@ export async function listPlayers(
 		offset?: number;
 	} = {},
 ) {
-	return db
-		.select({
+	const where = and(
+		options.tournamentId
+			? eq(players.tournamentId, options.tournamentId)
+			: undefined,
+		options.q
+			? ilike(
+					players.name,
+					`%${options.q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`,
+				)
+			: undefined,
+	);
+	const identity = sql`coalesce(${players.personId}, ${players.id})`;
+	const distinctPlayers = db
+		.selectDistinctOn([identity], {
 			id: players.id,
 			name: players.name,
 			sourcePlayerId: players.sourcePlayerId,
 			tournamentId: players.tournamentId,
 			profileUrl: players.profileUrl,
 			clubId: players.clubId,
+			personId: players.personId,
+			tournamentCount:
+				sql<number>`count(*) over (partition by ${identity})::int`.as(
+					"tournament_count",
+				),
 		})
 		.from(players)
-		.where(
-			and(
-				options.tournamentId
-					? eq(players.tournamentId, options.tournamentId)
-					: undefined,
-				options.q
-					? ilike(
-							players.name,
-							`%${options.q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`,
-						)
-					: undefined,
-			),
-		)
-		.orderBy(players.name)
+		.where(where)
+		.orderBy(identity, desc(players.updatedAt))
+		.as("distinct_players");
+	return db
+		.select()
+		.from(distinctPlayers)
+		.orderBy(distinctPlayers.name, distinctPlayers.id)
 		.limit(Math.min(Math.max(options.limit ?? 30, 1), 100))
 		.offset(Math.max(options.offset ?? 0, 0));
+}
+
+/** The other Players (one per Tournament) that belong to the same Person. */
+export async function listOtherAppearances(player: {
+	id: string;
+	personId: string | null;
+}) {
+	if (!player.personId) return [];
+	return db
+		.select({
+			id: players.id,
+			tournamentId: tournaments.id,
+			tournamentName: tournaments.name,
+			startsOn: tournaments.startsOn,
+		})
+		.from(players)
+		.innerJoin(tournaments, eq(players.tournamentId, tournaments.id))
+		.where(
+			and(eq(players.personId, player.personId), ne(players.id, player.id)),
+		)
+		.orderBy(desc(tournaments.startsOn));
+}
+
+/** Persons with the number of Tournaments they appear in, filtered by name. */
+export async function listPersons(
+	options: { q?: string; limit?: number; offset?: number } = {},
+) {
+	return db
+		.select({
+			id: persons.id,
+			organizationCode: persons.organizationCode,
+			memberId: persons.memberId,
+			name: persons.name,
+			tournamentCount: sql<number>`count(distinct ${players.tournamentId})::int`,
+		})
+		.from(persons)
+		.innerJoin(players, eq(players.personId, persons.id))
+		.where(
+			options.q
+				? ilike(
+						persons.name,
+						`%${options.q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`,
+					)
+				: undefined,
+		)
+		.groupBy(persons.id)
+		.orderBy(persons.name, persons.id)
+		.limit(Math.min(Math.max(options.limit ?? 30, 1), 100))
+		.offset(Math.max(options.offset ?? 0, 0));
+}
+
+/** A Person with one appearance (Player) per Tournament, newest first. */
+export async function getPerson(id: string) {
+	const [person] = await db
+		.select()
+		.from(persons)
+		.where(eq(persons.id, id))
+		.limit(1);
+	if (!person) return null;
+	const appearances = await db
+		.select({
+			playerId: players.id,
+			sourcePlayerId: players.sourcePlayerId,
+			name: players.name,
+			profileUrl: players.profileUrl,
+			tournamentId: tournaments.id,
+			tournamentName: tournaments.name,
+			startsOn: tournaments.startsOn,
+		})
+		.from(players)
+		.innerJoin(tournaments, eq(players.tournamentId, tournaments.id))
+		.where(eq(players.personId, id))
+		.orderBy(desc(tournaments.startsOn), players.id);
+	return { ...person, appearances };
 }

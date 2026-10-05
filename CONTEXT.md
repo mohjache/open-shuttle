@@ -41,5 +41,13 @@ One contest between two sides within a Tournament, belonging to a draw and round
 _Avoid_: Game, fixture
 
 **Player**:
-A person as they appear within one Tournament. The same person in two Tournaments is two Players.
+A competitor as they appear within one Tournament. The same Person in two Tournaments is two Players.
 _Avoid_: Competitor, athlete, member
+
+**Person**:
+One real competitor across Tournaments, identified by an organisation's member ID. Players without a usable member ID have no Person; we never link on name alone.
+_Avoid_: Athlete, profile, account
+
+**Member ID**:
+The code a Tournament's organiser assigns a competitor within an organisation. Placeholders such as `000` or `N.A.` are not usable.
+_Avoid_: Player ID (that is the per-Tournament number)

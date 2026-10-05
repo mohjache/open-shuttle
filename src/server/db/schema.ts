@@ -87,6 +87,16 @@ export const tournamentSources = createTable(
 	(t) => [primaryKey({ columns: [t.tournamentId, t.sourcePostId] })],
 );
 
+/** One real competitor across Tournaments, keyed by organisation and member ID. */
+export const persons = createTable("person", (d) => ({
+	id: d.text().primaryKey(),
+	organizationCode: d.uuid().notNull(),
+	memberId: d.text().notNull(),
+	name: d.text().notNull(),
+	createdAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+	updatedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
+}));
+
 export const players = createTable(
 	"player",
 	(d) => ({
@@ -99,9 +109,11 @@ export const players = createTable(
 		name: d.text().notNull(),
 		profileUrl: d.text().notNull(),
 		clubId: d.varchar({ length: 80 }),
+		personId: d.text().references(() => persons.id),
 		updatedAt: d.timestamp({ withTimezone: true }).notNull().defaultNow(),
 	}),
 	(t) => [
+		index("player_person_idx").on(t.personId),
 		uniqueIndex("player_tournament_source_uidx").on(
 			t.tournamentId,
 			t.sourcePlayerId,

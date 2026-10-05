@@ -293,8 +293,8 @@ export default async function HomePage() {
 								Built to be queried.
 							</CardTitle>
 							<CardDescription className="text-primary-foreground/75">
-								Public, read-only JSON endpoints for tournaments, matches, and
-								players.
+								Public, read-only JSON endpoints for tournaments, matches,
+								players, and persons.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="flex flex-col gap-3 font-mono text-sm">
@@ -302,6 +302,7 @@ export default async function HomePage() {
 								"/api/v1/tournaments",
 								"/api/v1/matches?limit=30",
 								"/api/v1/players?q=lee",
+								"/api/v1/persons?q=lee",
 							].map((path) => (
 								<Link
 									className="flex items-center justify-between rounded-lg bg-black/15 p-3 hover:bg-black/25"

@@ -18,7 +18,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "~/components/ui/table";
-import { listMatches } from "~/server/catalog";
+import { listMatches, listOtherAppearances } from "~/server/catalog";
 import { db } from "~/server/db";
 import { players, tournaments } from "~/server/db/schema";
 
@@ -37,7 +37,10 @@ export default async function PlayerPage({
 		.where(eq(players.id, id))
 		.limit(1);
 	if (!record) notFound();
-	const matches = await listMatches({ playerId: id, limit: 100 });
+	const [matches, otherAppearances] = await Promise.all([
+		listMatches({ playerId: id, limit: 100 }),
+		listOtherAppearances(record.player),
+	]);
 	return (
 		<main className="min-h-screen bg-background px-5 py-8 text-foreground sm:px-8">
 			<div className="mx-auto max-w-5xl">
@@ -69,6 +72,30 @@ export default async function PlayerPage({
 						Original player profile <ArrowUpRight className="size-4" />
 					</a>
 				</div>
+				{otherAppearances.length > 0 && (
+					<Card className="mb-6">
+						<CardHeader>
+							<CardTitle>Also appears in</CardTitle>
+							<CardDescription>
+								The same member ID is registered in these tournaments.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3">
+							{otherAppearances.map((appearance) => (
+								<Link
+									className="flex items-center justify-between gap-3 border-border border-b pb-3 text-sm last:border-b-0 last:pb-0 hover:text-primary"
+									href={`/players/${encodeURIComponent(appearance.id)}`}
+									key={appearance.id}
+								>
+									<span>{appearance.tournamentName}</span>
+									<span className="font-mono text-muted-foreground text-xs">
+										{appearance.startsOn ?? "Date TBC"}
+									</span>
+								</Link>
+							))}
+						</CardContent>
+					</Card>
+				)}
 				<Card>
 					<CardHeader>
 						<CardTitle>Match history</CardTitle>

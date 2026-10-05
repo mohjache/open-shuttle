@@ -11,6 +11,9 @@ export type ParsedPlayer = {
 	name: string;
 	profileUrl: string;
 	clubId: string | null;
+	/** Organiser-assigned code that persists across Tournaments; null if absent or a placeholder. */
+	memberId: string | null;
+	organizationCode: string | null;
 };
 
 export type ParsedMatch = {
@@ -25,6 +28,16 @@ export type ParsedMatch = {
 	sides: ParsedPlayer[][];
 	sourceUrl: string;
 };
+
+const PLACEHOLDER_MEMBER_ID = /^(?:0+|n[./]?a\.?|none|null|unknown|tbc|-+)$/i;
+
+/** Member IDs are organiser-entered; blanks and placeholders must never link people. */
+export function usableMemberId(
+	value: string | null | undefined,
+): string | null {
+	const id = value?.trim();
+	return id && !PLACEHOLDER_MEMBER_ID.test(id) ? id : null;
+}
 
 export function tournamentIdFromUrl(input: string): string | null {
 	try {
@@ -132,15 +145,20 @@ export function parseMatches(
 	const sourceUrl = `${canonicalTournamentUrl(tournamentId, origin)}/Matches/MatchesInDay?date=${day}`;
 	$(".match.match--list").each((_, element) => {
 		const match = $(element);
+		// The head-to-head link names each team position's member ID, but only
+		// for players that have one: T1P2MemberID is team one's second player.
+		const h2h = match.find('a[href*="head-2-head"]').attr("href");
+		const h2hParams = h2h ? new URL(h2h, origin).searchParams : null;
+		const organizationCode = h2hParams?.get("OrganizationCode") || null;
 		const sides = match
 			.find(".match__row")
 			.slice(0, 2)
 			.toArray()
-			.map((row) => {
+			.map((row, sideIndex) => {
 				const result: ParsedPlayer[] = [];
 				$(row)
 					.find("a[data-player-id]")
-					.each((_, anchor) => {
+					.each((position, anchor) => {
 						const a = $(anchor);
 						const sourcePlayerId = a.attr("data-player-id")?.trim();
 						const name = a.text().replace(/\s+/g, " ").trim();
@@ -150,6 +168,12 @@ export function parseMatches(
 							name,
 							profileUrl: new URL(a.attr("href") ?? "", origin).toString(),
 							clubId: a.attr("data-club-id") || null,
+							memberId: organizationCode
+								? usableMemberId(
+										h2hParams?.get(`T${sideIndex + 1}P${position + 1}MemberID`),
+									)
+								: null,
+							organizationCode,
 						});
 					});
 				return result;

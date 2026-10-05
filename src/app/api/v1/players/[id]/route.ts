@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { listMatches } from "~/server/catalog";
+import { listMatches, listOtherAppearances } from "~/server/catalog";
 import { db } from "~/server/db";
 import { players } from "~/server/db/schema";
 
@@ -21,6 +21,7 @@ export async function GET(
 		data: {
 			...player,
 			matches: await listMatches({ playerId: id, limit: 100 }),
+			otherAppearances: await listOtherAppearances(player),
 		},
 	});
 }

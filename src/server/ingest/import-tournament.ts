@@ -1,9 +1,10 @@
 import "server-only";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
 	matches,
 	matchPlayers,
+	persons,
 	players,
 	tournaments,
 } from "~/server/db/schema";
@@ -34,10 +35,15 @@ export type ImportOptions = {
 	today?: string;
 };
 
-/** Writes one match day. Upserts, so re-running a day is safe. */
+/**
+ * Writes one match day. Upserts, so re-running a day is safe. Returns each
+ * linked Player's Person, so the caller can reject ambiguous member IDs.
+ */
 async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
-	if (!dayMatches.length) return;
+	const links: { playerId: string; personId: string }[] = [];
+	if (!dayMatches.length) return links;
 	const now = new Date();
+	const personMap = new Map<string, typeof persons.$inferInsert>();
 	const playerMap = new Map<string, typeof players.$inferInsert>();
 	const matchValues: (typeof matches.$inferInsert)[] = [];
 	const participantValues: (typeof matchPlayers.$inferInsert)[] = [];
@@ -58,6 +64,20 @@ async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
 		for (const [sideIndex, side] of match.sides.entries()) {
 			for (const [position, player] of side.entries()) {
 				const playerId = `${tournamentId}:${player.sourcePlayerId}`;
+				const personId =
+					player.memberId && player.organizationCode
+						? `${player.organizationCode}:${player.memberId}`
+						: null;
+				if (personId && player.memberId && player.organizationCode) {
+					personMap.set(personId, {
+						id: personId,
+						organizationCode: player.organizationCode,
+						memberId: player.memberId,
+						name: player.name,
+						updatedAt: now,
+					});
+					links.push({ playerId, personId });
+				}
 				playerMap.set(playerId, {
 					id: playerId,
 					tournamentId,
@@ -65,6 +85,7 @@ async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
 					name: player.name,
 					profileUrl: player.profileUrl,
 					clubId: player.clubId,
+					personId,
 					updatedAt: now,
 				});
 				participantValues.push({
@@ -77,6 +98,14 @@ async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
 		}
 	}
 	await db.transaction(async (tx) => {
+		for (const batch of chunks([...personMap.values()]))
+			await tx
+				.insert(persons)
+				.values(batch)
+				.onConflictDoUpdate({
+					target: persons.id,
+					set: { name: sql.raw('excluded."name"'), updatedAt: now },
+				});
 		for (const batch of chunks([...playerMap.values()]))
 			await tx
 				.insert(players)
@@ -87,6 +116,8 @@ async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
 						name: sql.raw('excluded."name"'),
 						profileUrl: sql.raw('excluded."profileUrl"'),
 						clubId: sql.raw('excluded."clubId"'),
+						// A later import without a member ID must not unlink a Player.
+						personId: sql`coalesce(excluded."personId", ${players.personId})`,
 						updatedAt: now,
 					},
 				});
@@ -111,6 +142,7 @@ async function saveDay(tournamentId: string, dayMatches: ParsedMatch[]) {
 		for (const batch of chunks(participantValues))
 			await tx.insert(matchPlayers).values(batch).onConflictDoNothing();
 	});
+	return links;
 }
 
 /**
@@ -141,15 +173,29 @@ export async function importTournament(
 		.onConflictDoUpdate({ target: tournaments.id, set: dates });
 
 	let matchCount = 0;
+	const owners = new Map<string, Set<string>>();
 	for (const [index, day] of outline.days.entries()) {
 		if (deadlineMs !== undefined && Date.now() - startedAt > deadlineMs)
 			throw new Error(
 				`Import timed out after ${index} of ${outline.days.length} days`,
 			);
 		const dayMatches = await fetchMatchDay(outline, id, day);
-		await saveDay(id, dayMatches);
+		for (const { playerId, personId } of await saveDay(id, dayMatches))
+			owners.set(personId, (owners.get(personId) ?? new Set()).add(playerId));
 		matchCount += dayMatches.length;
 	}
+	// One Person has one Player per Tournament. A member ID shared by several
+	// Players is an organiser data error, so link none of them.
+	const ambiguous = [...owners]
+		.filter(([, playerIds]) => playerIds.size > 1)
+		.map(([personId]) => personId);
+	if (ambiguous.length)
+		await db
+			.update(players)
+			.set({ personId: null })
+			.where(
+				and(eq(players.tournamentId, id), inArray(players.personId, ambiguous)),
+			);
 	if (!matchCount)
 		throw new Error(
 			"No player matches parsed; page structure may have changed",

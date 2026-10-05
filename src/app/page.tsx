@@ -1,5 +1,7 @@
 import { ArrowRight, ArrowUpRight, Database, ShieldCheck } from "lucide-react";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
+import { AutoRefresh } from "~/app/auto-refresh";
 import {
 	Card,
 	CardContent,
@@ -30,11 +32,15 @@ function formatDate(date: string | null): string {
 	}).format(new Date(`${date}T12:00:00Z`));
 }
 
+// Shared across visitors, so many open tabs polling cost one query per window.
+const loadCatalog = unstable_cache(
+	() => Promise.all([listTournaments(1000), listMatches({ limit: 8 })]),
+	["landing-catalog"],
+	{ revalidate: 30 },
+);
+
 export default async function HomePage() {
-	const catalog = await Promise.all([
-		listTournaments(1000),
-		listMatches({ limit: 8 }),
-	]).catch(() => null);
+	const catalog = await loadCatalog().catch(() => null);
 	const tournaments = catalog?.[0] ?? [];
 	const matches = catalog?.[1] ?? [];
 	const matchCount = tournaments.reduce(
@@ -47,6 +53,7 @@ export default async function HomePage() {
 	);
 	return (
 		<main className="min-h-screen bg-background text-foreground">
+			<AutoRefresh />
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<header className="flex items-center justify-between border-border/70 border-b py-5">
 					<Link

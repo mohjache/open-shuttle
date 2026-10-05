@@ -1,12 +1,5 @@
-import {
-	ArrowRight,
-	ArrowUpRight,
-	Database,
-	Radio,
-	ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Database, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "~/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -24,8 +17,6 @@ import {
 	TableRow,
 } from "~/components/ui/table";
 import { listMatches, listTournaments } from "~/server/catalog";
-import { BRISBANE_SOURCE, LISTING_SOURCE } from "~/server/ingest/listing";
-import { GEN_CORE_SOURCE } from "~/server/ingest/organizer-listing";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +47,7 @@ export default async function HomePage() {
 	);
 	return (
 		<main className="min-h-screen bg-background text-foreground">
-			<div className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
+			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<header className="flex items-center justify-between border-border/70 border-b py-5">
 					<Link
 						className="flex items-center gap-3 font-semibold tracking-tight"
@@ -85,16 +76,12 @@ export default async function HomePage() {
 						</a>
 					</nav>
 				</header>
+			</div>
 
-				<section className="relative overflow-hidden py-16 sm:py-24">
-					<div className="pointer-events-none absolute top-0 -right-20 size-96 rounded-full bg-primary/10 blur-3xl" />
-					<div className="relative max-w-4xl">
-						<Badge
-							className="mb-6 border-primary/40 text-primary"
-							variant="outline"
-						>
-							<Radio data-icon="inline-start" /> Queensland badminton data
-						</Badge>
+			<section className="relative overflow-hidden">
+				<div className="pointer-events-none absolute inset-x-0 top-0 h-full bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent)]" />
+				<div className="relative mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
+					<div className="max-w-4xl">
 						<h1 className="font-heading font-semibold text-5xl leading-[1.02] tracking-[-0.06em] sm:text-7xl">
 							Every rally has
 							<br />
@@ -119,8 +106,10 @@ export default async function HomePage() {
 							</Link>
 						</div>
 					</div>
-				</section>
+				</div>
+			</section>
 
+			<div className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
 				<section className="grid grid-cols-1 gap-3 border-border/70 border-y py-5 sm:grid-cols-3">
 					{[
 						["TOURNAMENTS", tournaments.length],
@@ -325,25 +314,22 @@ export default async function HomePage() {
 								Traceable sources.
 							</CardTitle>
 							<CardDescription>
-								Every result links back to its public tournament page. Events
-								are discovered from Australian and Gen Core tournament listings.
+								Every result links back to where it came from.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="flex flex-col gap-3">
-							{[LISTING_SOURCE, BRISBANE_SOURCE, GEN_CORE_SOURCE].map(
-								(source) => (
-									<a
-										className="flex items-center justify-between border-border border-b pb-3 text-sm hover:text-primary"
-										href={source.url}
-										key={source.id}
-										rel="noreferrer"
-										target="_blank"
-									>
-										<span>{source.name}</span>
-										<ArrowUpRight className="size-4" />
-									</a>
-								),
-							)}
+							<a
+								className="flex items-center justify-between border-border border-b pb-3 text-sm hover:text-primary"
+								href="https://www.tournamentsoftware.com"
+								rel="noreferrer"
+								target="_blank"
+							>
+								<span>Tournamentsoftware</span>
+								<ArrowUpRight className="size-4" />
+							</a>
+							<div className="flex items-center justify-between border-border border-b pb-3 text-sm">
+								<span>BYO spreadsheet</span>
+							</div>
 							<Link
 								className="flex items-center justify-between text-sm hover:text-primary"
 								href="/submit"
@@ -356,9 +342,6 @@ export default async function HomePage() {
 				</section>
 				<footer className="flex flex-wrap items-center justify-between gap-3 border-border border-t py-7 font-mono text-muted-foreground text-xs">
 					<span>OPEN SHUTTLE / COMMUNITY DATA</span>
-					<Link className="hover:text-primary" href="/admin">
-						Admin
-					</Link>
 					<span>Public results · Source attributed</span>
 				</footer>
 			</div>

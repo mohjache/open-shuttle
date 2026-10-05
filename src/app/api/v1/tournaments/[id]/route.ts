@@ -18,8 +18,17 @@ export async function GET(
 	const { id } = await context.params;
 	if (!z.string().uuid().safeParse(id).success)
 		return Response.json({ error: "Invalid tournament ID" }, { status: 400 });
+	// Import attempts and errors are administrator-only; see /api/admin/status.
 	const [tournament] = await db
-		.select()
+		.select({
+			id: tournaments.id,
+			name: tournaments.name,
+			url: tournaments.url,
+			startsOn: tournaments.startsOn,
+			endsOn: tournaments.endsOn,
+			discoveredAt: tournaments.discoveredAt,
+			lastImportedAt: tournaments.lastImportedAt,
+		})
 		.from(tournaments)
 		.where(eq(tournaments.id, id))
 		.limit(1);

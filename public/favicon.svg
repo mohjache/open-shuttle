@@ -1,0 +1,13 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+	<title>Open Shuttle</title>
+	<rect fill="#261423" height="64" rx="15" width="64" />
+	<path
+		d="M17 14l15 24 15-24M21 13l11 25 11-25M26 12l6 26 6-26"
+		fill="none"
+		stroke="#f472d0"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		stroke-width="3"
+	/>
+	<path d="M26 39h12l-2 9c-.5 2-2 3-4 3s-3.5-1-4-3z" fill="#f472d0" />
+</svg>

@@ -8,6 +8,14 @@ export const env = createEnv({
 	 */
 	server: {
 		DATABASE_URL: z.string().url(),
+		DATABASE_URL_UNPOOLED: z.string().url().optional(),
+		CRON_SECRET: z.string().min(16).optional(),
+		INGEST_API_KEY: z.string().min(16).optional(),
+		FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
+		TOURNAMENT_DISCOVERY_QUERY: z.string().max(160).optional(),
+		NEON_AUTH_BASE_URL: z.string().url().optional(),
+		NEON_AUTH_COOKIE_SECRET: z.string().min(32).optional(),
+		ADMIN_EMAIL: z.string().email().optional(),
 		NODE_ENV: z
 			.enum(["development", "test", "production"])
 			.default("development"),
@@ -28,6 +36,14 @@ export const env = createEnv({
 	 */
 	runtimeEnv: {
 		DATABASE_URL: process.env.DATABASE_URL,
+		DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+		CRON_SECRET: process.env.CRON_SECRET,
+		INGEST_API_KEY: process.env.INGEST_API_KEY,
+		FACEBOOK_PAGE_ACCESS_TOKEN: process.env.FACEBOOK_PAGE_ACCESS_TOKEN,
+		TOURNAMENT_DISCOVERY_QUERY: process.env.TOURNAMENT_DISCOVERY_QUERY,
+		NEON_AUTH_BASE_URL: process.env.NEON_AUTH_BASE_URL,
+		NEON_AUTH_COOKIE_SECRET: process.env.NEON_AUTH_COOKIE_SECRET,
+		ADMIN_EMAIL: process.env.ADMIN_EMAIL,
 		NODE_ENV: process.env.NODE_ENV,
 		// NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
 	},

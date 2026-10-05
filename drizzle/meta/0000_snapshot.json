@@ -1,0 +1,632 @@
+{
+	"id": "2161cb96-e54c-4edf-839b-923135574a24",
+	"prevId": "00000000-0000-0000-0000-000000000000",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.open-shuttle_ingestion_run": {
+			"name": "open-shuttle_ingestion_run",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "integer",
+					"primaryKey": true,
+					"notNull": true,
+					"identity": {
+						"type": "byDefault",
+						"name": "open-shuttle_ingestion_run_id_seq",
+						"schema": "public",
+						"increment": "1",
+						"startWith": "1",
+						"minValue": "1",
+						"maxValue": "2147483647",
+						"cache": "1",
+						"cycle": false
+					}
+				},
+				"startedAt": {
+					"name": "startedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"finishedAt": {
+					"name": "finishedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"status": {
+					"name": "status",
+					"type": "varchar(24)",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'running'"
+				},
+				"discovered": {
+					"name": "discovered",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"imported": {
+					"name": "imported",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"matches": {
+					"name": "matches",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"error": {
+					"name": "error",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_match_player": {
+			"name": "open-shuttle_match_player",
+			"schema": "",
+			"columns": {
+				"matchId": {
+					"name": "matchId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"playerId": {
+					"name": "playerId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"side": {
+					"name": "side",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"position": {
+					"name": "position",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"match_player_player_idx": {
+					"name": "match_player_player_idx",
+					"columns": [
+						{
+							"expression": "playerId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"open-shuttle_match_player_matchId_open-shuttle_match_id_fk": {
+					"name": "open-shuttle_match_player_matchId_open-shuttle_match_id_fk",
+					"tableFrom": "open-shuttle_match_player",
+					"tableTo": "open-shuttle_match",
+					"columnsFrom": ["matchId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"open-shuttle_match_player_playerId_open-shuttle_player_id_fk": {
+					"name": "open-shuttle_match_player_playerId_open-shuttle_player_id_fk",
+					"tableFrom": "open-shuttle_match_player",
+					"tableTo": "open-shuttle_player",
+					"columnsFrom": ["playerId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"open-shuttle_match_player_matchId_playerId_pk": {
+					"name": "open-shuttle_match_player_matchId_playerId_pk",
+					"columns": ["matchId", "playerId"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_match": {
+			"name": "open-shuttle_match",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"tournamentId": {
+					"name": "tournamentId",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"matchDate": {
+					"name": "matchDate",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"draw": {
+					"name": "draw",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"round": {
+					"name": "round",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"venue": {
+					"name": "venue",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"score": {
+					"name": "score",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"winnerSide": {
+					"name": "winnerSide",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"status": {
+					"name": "status",
+					"type": "varchar(32)",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'scheduled'"
+				},
+				"sourceUrl": {
+					"name": "sourceUrl",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"match_tournament_date_idx": {
+					"name": "match_tournament_date_idx",
+					"columns": [
+						{
+							"expression": "tournamentId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "matchDate",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"open-shuttle_match_tournamentId_open-shuttle_tournament_id_fk": {
+					"name": "open-shuttle_match_tournamentId_open-shuttle_tournament_id_fk",
+					"tableFrom": "open-shuttle_match",
+					"tableTo": "open-shuttle_tournament",
+					"columnsFrom": ["tournamentId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_player": {
+			"name": "open-shuttle_player",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"tournamentId": {
+					"name": "tournamentId",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sourcePlayerId": {
+					"name": "sourcePlayerId",
+					"type": "varchar(80)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"profileUrl": {
+					"name": "profileUrl",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"clubId": {
+					"name": "clubId",
+					"type": "varchar(80)",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"player_tournament_source_uidx": {
+					"name": "player_tournament_source_uidx",
+					"columns": [
+						{
+							"expression": "tournamentId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "sourcePlayerId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"player_name_idx": {
+					"name": "player_name_idx",
+					"columns": [
+						{
+							"expression": "name",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"open-shuttle_player_tournamentId_open-shuttle_tournament_id_fk": {
+					"name": "open-shuttle_player_tournamentId_open-shuttle_tournament_id_fk",
+					"tableFrom": "open-shuttle_player",
+					"tableTo": "open-shuttle_tournament",
+					"columnsFrom": ["tournamentId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_source_post": {
+			"name": "open-shuttle_source_post",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"sourceId": {
+					"name": "sourceId",
+					"type": "varchar(80)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"publishedAt": {
+					"name": "publishedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"text": {
+					"name": "text",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"discoveredAt": {
+					"name": "discoveredAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"source_post_source_idx": {
+					"name": "source_post_source_idx",
+					"columns": [
+						{
+							"expression": "sourceId",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"open-shuttle_source_post_sourceId_open-shuttle_source_id_fk": {
+					"name": "open-shuttle_source_post_sourceId_open-shuttle_source_id_fk",
+					"tableFrom": "open-shuttle_source_post",
+					"tableTo": "open-shuttle_source",
+					"columnsFrom": ["sourceId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_source": {
+			"name": "open-shuttle_source",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "varchar(80)",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "varchar(160)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"pageId": {
+					"name": "pageId",
+					"type": "varchar(160)",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"enabled": {
+					"name": "enabled",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"lastCheckedAt": {
+					"name": "lastCheckedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"lastError": {
+					"name": "lastError",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_tournament_source": {
+			"name": "open-shuttle_tournament_source",
+			"schema": "",
+			"columns": {
+				"tournamentId": {
+					"name": "tournamentId",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sourcePostId": {
+					"name": "sourcePostId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"open-shuttle_tournament_source_tournamentId_open-shuttle_tournament_id_fk": {
+					"name": "open-shuttle_tournament_source_tournamentId_open-shuttle_tournament_id_fk",
+					"tableFrom": "open-shuttle_tournament_source",
+					"tableTo": "open-shuttle_tournament",
+					"columnsFrom": ["tournamentId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"open-shuttle_tournament_source_sourcePostId_open-shuttle_source_post_id_fk": {
+					"name": "open-shuttle_tournament_source_sourcePostId_open-shuttle_source_post_id_fk",
+					"tableFrom": "open-shuttle_tournament_source",
+					"tableTo": "open-shuttle_source_post",
+					"columnsFrom": ["sourcePostId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"open-shuttle_tournament_source_tournamentId_sourcePostId_pk": {
+					"name": "open-shuttle_tournament_source_tournamentId_sourcePostId_pk",
+					"columns": ["tournamentId", "sourcePostId"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.open-shuttle_tournament": {
+			"name": "open-shuttle_tournament",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"startsOn": {
+					"name": "startsOn",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"endsOn": {
+					"name": "endsOn",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"discoveredAt": {
+					"name": "discoveredAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"lastImportedAt": {
+					"name": "lastImportedAt",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"lastError": {
+					"name": "lastError",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
+}

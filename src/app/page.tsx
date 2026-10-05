@@ -1,36 +1,360 @@
+import {
+	ArrowRight,
+	ArrowUpRight,
+	Database,
+	Radio,
+	ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
+import { Badge } from "~/components/ui/badge";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "~/components/ui/card";
+import { Separator } from "~/components/ui/separator";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "~/components/ui/table";
+import { listMatches, listTournaments } from "~/server/catalog";
+import { BRISBANE_SOURCE, LISTING_SOURCE } from "~/server/ingest/listing";
+import { GEN_CORE_SOURCE } from "~/server/ingest/organizer-listing";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+function formatDate(date: string | null): string {
+	if (!date) return "Date TBC";
+	return new Intl.DateTimeFormat("en-AU", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "Australia/Brisbane",
+	}).format(new Date(`${date}T12:00:00Z`));
+}
+
+export default async function HomePage() {
+	const catalog = await Promise.all([
+		listTournaments(1000),
+		listMatches({ limit: 8 }),
+	]).catch(() => null);
+	const tournaments = catalog?.[0] ?? [];
+	const matches = catalog?.[1] ?? [];
+	const matchCount = tournaments.reduce(
+		(sum, item) => sum + item.matchCount,
+		0,
+	);
+	const playerCount = tournaments.reduce(
+		(sum, item) => sum + item.playerCount,
+		0,
+	);
 	return (
-		<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-			<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-				<h1 className="font-extrabold text-5xl text-white tracking-tight sm:text-[5rem]">
-					Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-				</h1>
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
+		<main className="min-h-screen bg-background text-foreground">
+			<div className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
+				<header className="flex items-center justify-between border-border/70 border-b py-5">
 					<Link
-						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-						href="https://create.t3.gg/en/usage/first-steps"
-						target="_blank"
+						className="flex items-center gap-3 font-semibold tracking-tight"
+						href="/"
 					>
-						<h3 className="font-bold text-2xl">First Steps →</h3>
-						<div className="text-lg">
-							Just the basics - Everything you need to know to set up your
-							database and authentication.
-						</div>
+						<span className="flex size-9 items-center justify-center rounded-xl bg-primary font-bold font-mono text-lg text-primary-foreground">
+							S
+						</span>
+						<span>OPEN SHUTTLE</span>
 					</Link>
-					<Link
-						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-						href="https://create.t3.gg/en/introduction"
-						target="_blank"
-					>
-						<h3 className="font-bold text-2xl">Documentation →</h3>
-						<div className="text-lg">
-							Learn more about Create T3 App, the libraries it uses, and how to
-							deploy it.
+					<nav className="flex items-center gap-5 text-muted-foreground text-sm">
+						<a
+							className="transition-colors hover:text-foreground"
+							href="#tournaments"
+						>
+							Tournaments
+						</a>
+						<a
+							className="transition-colors hover:text-foreground"
+							href="#matches"
+						>
+							Results
+						</a>
+						<a className="transition-colors hover:text-foreground" href="#api">
+							API
+						</a>
+					</nav>
+				</header>
+
+				<section className="relative overflow-hidden py-16 sm:py-24">
+					<div className="pointer-events-none absolute top-0 -right-20 size-96 rounded-full bg-primary/10 blur-3xl" />
+					<div className="relative max-w-4xl">
+						<Badge
+							className="mb-6 border-primary/40 text-primary"
+							variant="outline"
+						>
+							<Radio data-icon="inline-start" /> Queensland badminton data
+						</Badge>
+						<h1 className="font-heading font-semibold text-5xl leading-[1.02] tracking-[-0.06em] sm:text-7xl">
+							Every rally has
+							<br />
+							<span className="text-primary">a data trail.</span>
+						</h1>
+						<p className="mt-7 max-w-2xl text-lg text-muted-foreground leading-relaxed">
+							Tournament results, players, and matches gathered from public
+							sources and made available through one clean API.
+						</p>
+						<div className="mt-9 flex flex-wrap gap-3">
+							<Link
+								className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm transition-opacity hover:opacity-80"
+								href="#tournaments"
+							>
+								Explore tournaments <ArrowRight className="size-4" />
+							</Link>
+							<Link
+								className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 font-medium text-sm transition-colors hover:bg-muted"
+								href="#api"
+							>
+								View API endpoints <ArrowUpRight className="size-4" />
+							</Link>
 						</div>
-					</Link>
-				</div>
+					</div>
+				</section>
+
+				<section className="grid grid-cols-1 gap-3 border-border/70 border-y py-5 sm:grid-cols-3">
+					{[
+						["TOURNAMENTS", tournaments.length],
+						["MATCHES", matchCount],
+						["PLAYERS", playerCount],
+					].map(([label, value]) => (
+						<div className="flex items-baseline gap-3" key={label}>
+							<strong className="font-medium font-mono text-3xl tabular-nums">
+								{value}
+							</strong>
+							<span className="font-mono text-muted-foreground text-xs tracking-widest">
+								{label}
+							</span>
+						</div>
+					))}
+				</section>
+
+				<section className="py-16" id="tournaments">
+					<div className="mb-7 flex items-end justify-between gap-5">
+						<div>
+							<p className="mb-2 font-mono text-primary text-xs tracking-[0.2em]">
+								01 / THE CIRCUIT
+							</p>
+							<h2 className="font-heading font-semibold text-3xl tracking-tight sm:text-4xl">
+								Tournaments
+							</h2>
+						</div>
+						<Link
+							className="text-muted-foreground text-sm hover:text-foreground"
+							href="/api/v1/tournaments"
+						>
+							JSON <ArrowUpRight className="inline size-4" />
+						</Link>
+					</div>
+					{tournaments.length ? (
+						<div className="grid gap-3 md:grid-cols-2">
+							{tournaments.slice(0, 8).map((tournament, index) => (
+								<Link
+									className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-muted/30"
+									href={`/tournaments/${tournament.id}`}
+									key={tournament.id}
+								>
+									<div className="mb-8 flex items-start justify-between">
+										<span className="font-mono text-muted-foreground text-xs">
+											{String(index + 1).padStart(2, "0")} / TOURNAMENT
+										</span>
+										<ArrowUpRight className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+									</div>
+									<h3 className="min-h-16 font-heading font-medium text-xl leading-snug">
+										{tournament.name}
+									</h3>
+									<Separator className="my-5" />
+									<div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
+										<span>{formatDate(tournament.startsOn)}</span>
+										<span className="font-mono">
+											{tournament.matchCount} matches · {tournament.playerCount}{" "}
+											players
+										</span>
+									</div>
+								</Link>
+							))}
+						</div>
+					) : (
+						<Card>
+							<CardHeader>
+								<CardTitle>
+									{catalog
+										? "The first tournament is queued"
+										: "Database connection needed"}
+								</CardTitle>
+								<CardDescription>
+									{catalog
+										? "Run the ingestion job to populate results for the example tournament."
+										: "Set DATABASE_URL to a migrated Neon database to show live data."}
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<a
+									className="text-primary underline underline-offset-4"
+									href="https://badminton.tournamentsoftware.com/tournament/ADA99113-FA52-47F3-88D0-D4866C344313"
+									rel="noreferrer"
+									target="_blank"
+								>
+									View the example source tournament ↗
+								</a>
+							</CardContent>
+						</Card>
+					)}
+				</section>
+
+				<section className="py-8" id="matches">
+					<div className="mb-7">
+						<p className="mb-2 font-mono text-primary text-xs tracking-[0.2em]">
+							02 / ON COURT
+						</p>
+						<h2 className="font-heading font-semibold text-3xl tracking-tight sm:text-4xl">
+							Recent matches
+						</h2>
+					</div>
+					<Card>
+						<CardContent className="px-0">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="pl-5">Date / draw</TableHead>
+										<TableHead>Side one</TableHead>
+										<TableHead>Side two</TableHead>
+										<TableHead>Score</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{matches.length ? (
+										matches.map((match) => (
+											<TableRow key={match.id}>
+												<TableCell className="pl-5 text-muted-foreground">
+													<span className="block whitespace-nowrap">
+														{formatDate(match.matchDate)}
+													</span>
+													<span className="font-mono text-xs">
+														{match.draw ?? "—"}
+													</span>
+												</TableCell>
+												<TableCell
+													className={
+														match.winnerSide === 1
+															? "font-medium text-primary"
+															: ""
+													}
+												>
+													{match.sides[0]
+														?.map((player) => player.name)
+														.join(" / ") || "TBC"}
+												</TableCell>
+												<TableCell
+													className={
+														match.winnerSide === 2
+															? "font-medium text-primary"
+															: ""
+													}
+												>
+													{match.sides[1]
+														?.map((player) => player.name)
+														.join(" / ") || "TBC"}
+												</TableCell>
+												<TableCell className="font-mono">
+													{match.score ?? "—"}
+												</TableCell>
+											</TableRow>
+										))
+									) : (
+										<TableRow>
+											<TableCell
+												className="py-12 text-center text-muted-foreground"
+												colSpan={4}
+											>
+												Results appear here after the first import.
+											</TableCell>
+										</TableRow>
+									)}
+								</TableBody>
+							</Table>
+						</CardContent>
+					</Card>
+				</section>
+
+				<section className="grid gap-6 py-16 lg:grid-cols-[1.2fr_1fr]" id="api">
+					<Card className="bg-primary text-primary-foreground">
+						<CardHeader>
+							<Database className="mb-3 size-6" />
+							<CardTitle className="font-heading text-3xl">
+								Built to be queried.
+							</CardTitle>
+							<CardDescription className="text-primary-foreground/75">
+								Public, read-only JSON endpoints for tournaments, matches, and
+								players.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3 font-mono text-sm">
+							{[
+								"/api/v1/tournaments",
+								"/api/v1/matches?limit=30",
+								"/api/v1/players?q=lee",
+							].map((path) => (
+								<Link
+									className="flex items-center justify-between rounded-lg bg-black/15 p-3 hover:bg-black/25"
+									href={path}
+									key={path}
+								>
+									<span className="truncate">GET {path}</span>
+									<ArrowUpRight className="size-4 shrink-0" />
+								</Link>
+							))}
+						</CardContent>
+					</Card>
+					<Card>
+						<CardHeader>
+							<ShieldCheck className="mb-3 size-6 text-primary" />
+							<CardTitle className="font-heading text-3xl">
+								Traceable sources.
+							</CardTitle>
+							<CardDescription>
+								Every result links back to its public tournament page. Events
+								are discovered from Australian and Gen Core tournament listings.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3">
+							{[LISTING_SOURCE, BRISBANE_SOURCE, GEN_CORE_SOURCE].map(
+								(source) => (
+									<a
+										className="flex items-center justify-between border-border border-b pb-3 text-sm hover:text-primary"
+										href={source.url}
+										key={source.id}
+										rel="noreferrer"
+										target="_blank"
+									>
+										<span>{source.name}</span>
+										<ArrowUpRight className="size-4" />
+									</a>
+								),
+							)}
+							<Link
+								className="flex items-center justify-between text-sm hover:text-primary"
+								href="/submit"
+							>
+								<span>Add a local tournament</span>
+								<ArrowRight className="size-4" />
+							</Link>
+						</CardContent>
+					</Card>
+				</section>
+				<footer className="flex flex-wrap items-center justify-between gap-3 border-border border-t py-7 font-mono text-muted-foreground text-xs">
+					<span>OPEN SHUTTLE / COMMUNITY DATA</span>
+					<span>Public results · Source attributed</span>
+				</footer>
 			</div>
 		</main>
 	);

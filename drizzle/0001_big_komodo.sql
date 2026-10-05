@@ -1,0 +1,1 @@
+ALTER TABLE "open-shuttle_tournament" ADD COLUMN "lastAttemptAt" timestamp with time zone;

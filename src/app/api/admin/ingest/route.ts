@@ -10,7 +10,10 @@ export async function POST(request: Request) {
 		return Response.json({ error: "Unauthorized" }, { status: 401 });
 	try {
 		const result = await runIngestion({
-			facebookToken: env.FACEBOOK_PAGE_ACCESS_TOKEN,
+			facebookToken:
+				env.FACEBOOK_DISCOVERY_ENABLED === "true"
+					? env.FACEBOOK_PAGE_ACCESS_TOKEN
+					: undefined,
 			listingQuery: env.TOURNAMENT_DISCOVERY_QUERY,
 		});
 		return Response.json(result, { status: result.errors.length ? 207 : 200 });

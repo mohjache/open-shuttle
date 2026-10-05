@@ -51,7 +51,7 @@ An agent can discover events immediately with `POST /api/admin/discover` using t
 
 ## Facebook discovery
 
-Set `FACEBOOK_PAGE_ACCESS_TOKEN` to a Meta Graph API token with access to the configured Pages. A Page access token obtained through `/me/accounts` covers a Page you manage; it does not automatically grant access to the other public Pages in this list. To use one token for all three sources, the Meta app needs approved Page Public Content Access. Until then, disable inaccessible sources or import Tournamentsoftware URLs directly. See [Facebook access setup](docs/facebook-access.md) for the steps and a permissions check. The seeded `pageId` values are Page handles; replace them with numeric IDs if your Graph API setup requires them:
+Facebook discovery is disabled by default. Leave `FACEBOOK_DISCOVERY_ENABLED=false` to skip Meta entirely, even when a token is present. Both the admin button and cron respect this switch; Tournamentsoftware discovery and imports continue normally. Existing run errors remain in history. To enable Facebook, set `FACEBOOK_DISCOVERY_ENABLED=true` and `FACEBOOK_PAGE_ACCESS_TOKEN` to a Meta Graph API token with access to the configured Pages. A Page access token obtained through `/me/accounts` covers a Page you manage; it does not automatically grant access to the other public Pages in this list. To use one token for all three sources, the Meta app needs approved Page Public Content Access. Until then, disable inaccessible sources or import Tournamentsoftware URLs directly. See [Facebook access setup](docs/facebook-access.md) for the steps and a permissions check. The seeded `pageId` values are Page handles; replace them with numeric IDs if your Graph API setup requires them:
 
 ```powershell
 

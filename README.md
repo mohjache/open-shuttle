@@ -14,7 +14,7 @@ Public Queensland badminton results, with a JSON API and an importer that discov
 
 - A daily Vercel Cron invokes `/api/cron/ingest` at 13:00 Brisbane time (03:00 UTC). It discovers events, imports two eligible tournaments per run, prioritizes never-attempted events, then refreshes least-recently-attempted events. Future tournaments wait until their start date in Brisbane.
 
-- `/admin` lets an administrator run the same discovery-and-import job as the cron. It uses `POST /api/admin/ingest`, requires the admin key or authorized session, and displays new tournaments, imports, matches and partial failures. The cron secret is never sent to the browser.
+- `/admin` lets an administrator run the same discovery-and-import job as the cron. It requires a Neon Auth login as `ADMIN_EMAIL` (sign in at `/admin/sign-in`; other accounts are refused and unauthenticated visitors are redirected), uses `POST /api/admin/ingest`, and displays new tournaments, imports, matches and partial failures. The cron secret is never sent to the browser.
 - `/submit` provides a form for local Tournamentsoftware links. It requires an admin key or authorized Neon Auth session and uses the existing import API. It clears the key after each attempt.
 
 - Three optional Facebook Page sources are configured. When a Graph API token is supplied, the adapter scans their latest three pages of posts and attached links.

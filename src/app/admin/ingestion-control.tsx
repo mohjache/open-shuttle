@@ -3,13 +3,6 @@
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
-import {
-	Field,
-	FieldDescription,
-	FieldGroup,
-	FieldLabel,
-} from "~/components/ui/field";
-import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/ui/spinner";
 
 type Result = {
@@ -39,21 +32,16 @@ export function IngestionControl() {
 
 	async function run(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
-		const form = event.currentTarget;
-		const key = String(new FormData(form).get("key") ?? "").trim();
 		setPending(true);
 		setError(null);
 		setResult(null);
 		try {
 			const response = await fetch("/api/admin/ingest", {
 				method: "POST",
-				headers: key ? { Authorization: `Bearer ${key}` } : {},
 				signal: AbortSignal.timeout(65_000),
 			});
 			if (response.status === 401)
-				throw new Error(
-					"Enter a valid admin access key, or use an authorized administrator session.",
-				);
+				throw new Error("Your session has expired. Sign in again to continue.");
 			const data = await response.json();
 			if (!response.ok)
 				throw new Error(
@@ -73,30 +61,12 @@ export function IngestionControl() {
 					: "No completion response was received. The job may still be running; check ingestion status before retrying.",
 			);
 		} finally {
-			const input = form.elements.namedItem("key");
-			if (input instanceof HTMLInputElement) input.value = "";
 			setPending(false);
 		}
 	}
 
 	return (
 		<form className="flex flex-col gap-6" onSubmit={run}>
-			<FieldGroup>
-				<Field data-disabled={pending}>
-					<FieldLabel htmlFor="ingestion-key">Admin access key</FieldLabel>
-					<Input
-						autoComplete="off"
-						disabled={pending}
-						id="ingestion-key"
-						name="key"
-						type="password"
-					/>
-					<FieldDescription>
-						Use your INGEST_API_KEY. Optional with an authorized admin session.
-						Cleared after each attempt.
-					</FieldDescription>
-				</Field>
-			</FieldGroup>
 			<Button disabled={pending} type="submit">
 				{pending && <Spinner data-icon="inline-start" />}
 				{pending ? "Running ingestion…" : "Run ingestion now"}
